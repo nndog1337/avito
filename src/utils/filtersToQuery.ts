@@ -1,26 +1,21 @@
 import type { GetItemsParams } from '../types/api';
 import type { FiltersState } from '../store/filtersSlice';
 
-export function filtersToGetItemsParams(filters: FiltersState): GetItemsParams {
+export function filtersToGetItemsParams(state: FiltersState): GetItemsParams {
+  const skip = (state.page - 1) * state.pageSize;
   const params: GetItemsParams = {
-    limit: filters.pageSize,
-    skip: (filters.page - 1) * filters.pageSize,
-    sortColumn: filters.sortColumn,
-    sortDirection: filters.sortDirection,
+    limit: state.pageSize,
+    skip,
+    sortColumn: state.sortColumn,
+    sortDirection: state.sortDirection,
   };
-
-  if (filters.q) {
-    params.q = filters.q;
+  const trimmed = state.q.trim();
+  if (trimmed) params.q = trimmed;
+  if (state.categories.length > 0) {
+    params.categories = state.categories.join(',');
   }
-
-  // ✅ ИСПРАВЛЕНО: categories должен быть строкой с категориями через запятую
-  if (filters.categories && filters.categories.length > 0) {
-    params.categories = filters.categories.join(',');
-  }
-
-  if (filters.needsRevision) {
+  if (state.needsRevision) {
     params.needsRevision = true;
   }
-
   return params;
 }

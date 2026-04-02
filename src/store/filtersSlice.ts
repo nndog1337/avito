@@ -71,7 +71,6 @@ export const filtersSlice = createSlice({
     resetFilters() {
       return { ...initialState, allItems: null, isAllItemsLoaded: false };
     },
-    // 👇 Новые редьюсеры для кэша
     setAllItems(state, action: PayloadAction<Item[]>) {
       state.allItems = action.payload;
       state.isAllItemsLoaded = true;

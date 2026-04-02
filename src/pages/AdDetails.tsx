@@ -43,11 +43,11 @@ function formatDate(iso: string) {
 
 function getMissingFields(item: Item): string[] {
   const missing: string[] = [];
-  
+
   if (!item.description) {
     missing.push('Описание');
   }
-  
+
   if (item.category === 'electronics') {
     const params = item.params as ElectronicsParams;
     if (!params.color) missing.push('Цвет');
@@ -66,7 +66,7 @@ function getMissingFields(item: Item): string[] {
     if (!params.area) missing.push('Площадь');
     if (!params.address) missing.push('Адрес');
   }
-  
+
   return missing;
 }
 
@@ -106,16 +106,18 @@ function ParamsTable({ item }: { item: Item }) {
   }
 
   return (
-    <Table variant="vertical" layout="fixed" withTableBorder>
-      <Table.Tbody>
-        {rows.map((row) => (
-          <Table.Tr key={row.label}>
-            <Table.Th style={{ width: 120, backgroundColor: '#f8f9fa' }}>{row.label}</Table.Th>
-            <Table.Td>{row.value}</Table.Td>
-          </Table.Tr>
-        ))}
-      </Table.Tbody>
-    </Table>
+    <Stack gap="sm">
+      {rows.map((row) => (
+        <Group key={row.label} wrap="nowrap">
+          <Text fw={500} size="sm" c="dimmed" style={{ minWidth: 120 }}>
+            {row.label}:
+          </Text>
+          <Text size="sm" style={{ textAlign: 'right' }}>
+            {row.value}
+          </Text>
+        </Group>
+      ))}
+    </Stack>
   );
 }
 
@@ -127,7 +129,7 @@ export default function AdDetails() {
 
   if (!id) {
     return (
-      <Container py="lg">
+      <Container style={{ maxWidth: 1368 }}>
         <Text>Некорректный идентификатор</Text>
       </Container>
     );
@@ -135,7 +137,7 @@ export default function AdDetails() {
 
   if (isLoading) {
     return (
-      <Container py="lg">
+      <Container style={{ maxWidth: 1368 }}>
         <Text>Загрузка…</Text>
       </Container>
     );
@@ -143,7 +145,7 @@ export default function AdDetails() {
 
   if (isError || !item) {
     return (
-      <Container py="lg">
+      <Container style={{ maxWidth: 1368 }}>
         <Stack gap="md">
           <Text c="red">
             {error && 'status' in error ? `Ошибка ${error.status}` : 'Объявление не найдено'}
@@ -159,76 +161,79 @@ export default function AdDetails() {
   const missingFields = getMissingFields(item);
 
   return (
-    <Container size="md" py="lg">
+    <Container style={{ maxWidth: 1368 }}>
       <Stack gap="xl">
         <div>
           <Group justify="space-between" align="flex-start" mt="md" wrap="wrap">
             <Box style={{ flex: 1 }}>
               <Flex justify={'space-between'}>
                 <Title order={2} size={28}>{item.title}</Title>
-                <Text size="xl" fw={700} c="black" style={{fontSize:'28px'}}>
-                    {formatPrice(item.price)}
-                  </Text>
+                <Text size="xl" fw={700} c="black" style={{ fontSize: '28px' }}>
+                  {formatPrice(item.price)}
+                </Text>
               </Flex>
               <Flex justify={'space-between'}>
-                  <Button
+                <Button
                   component={Link}
                   to={`/ads/${item.id}/edit`}
-                  leftSection={<IconPencil size={18} />}
-                  variant="light"
+                  rightSection={<IconPencil size={18} />}
+                  variant="blue"
                   w={170}
+                  style={{
+                    transition: 'all 0.2s ease',
+                    cursor: 'pointer',
+                  }}
                 >
                   Редактировать
                 </Button>
-                <Flex direction="column">
-                    <Text c="dimmed" size="sm" mt={4}>
-                      Опубликовано: {formatDate(item.createdAt)}
-                      {item.updatedAt && (
-                        <Text> Отредактировано: {formatDate(item.updatedAt)}</Text>
-                      )}
-                    </Text>
-                  </Flex>
+                <Flex direction="column" style={{ textAlign: 'right' }}>
+                  <Text c="dimmed" size="sm" mt={4}>
+                    Опубликовано: {formatDate(item.createdAt)}
+                  </Text>
+                  {item.updatedAt && (
+                      <Text c="dimmed" size="sm" mt={4}> Отредактировано: {formatDate(item.updatedAt)}</Text>
+                    )}
                 </Flex>
+              </Flex>
             </Box>
           </Group>
         </div>
-
         <Flex gap={32}>
           <Image
             src={'https://placehold.co/400x250?text=Нет+фото'}
             height={'360px'}
             alt={item.title}
             fit="cover"
-            style={{width:'480px'}}
+            style={{ width: '480px' }}
           />
-          <Flex direction="column">
+          <Flex gap={36} direction="column" style={{ width: '527px' }}>
             {missingFields.length > 0 && (
-            <Alert
-              color="yellow"
-              icon={<IconAlertCircle size={18} />}
-              title="Требуются доработки"
-              variant="light"
-            >
-              <Text size="sm" fw={500} mb="xs">
-                У объявления не заполнены поля:
-              </Text>
-              <ul style={{ margin: 0, paddingLeft: 20 }}>
-                {missingFields.map((field) => (
-                  <li key={field}>
-                    <Text size="sm">{field}</Text>
-                  </li>
-                ))}
-              </ul>
-            </Alert>
-          )}
+              <Alert
+                color="yellow"
+                icon={<IconAlertCircle size={18} />}
+                title="Требуются доработки"
+                variant="light"
+                style={{ boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)' }}
+              >
+                <Text size="sm" fw={500} mb="xs">
+                  У объявления не заполнены поля:
+                </Text>
+                <ul style={{ margin: 0, paddingLeft: 20 }}>
+                  {missingFields.map((field) => (
+                    <li key={field}>
+                      <Text size="sm">{field}</Text>
+                    </li>
+                  ))}
+                </ul>
+              </Alert>
+            )}
 
-          <Box>
-            <Title order={4} mb="sm">
-              Характеристики
-            </Title>
-            <Divider mb="md" />
-            <ParamsTable item={item} />
-          </Box>
+            <Box>
+              <Title order={4} mb="sm">
+                Характеристики
+              </Title>
+              <ParamsTable item={item} />
+            </Box>
           </Flex>
         </Flex>
 
@@ -237,9 +242,12 @@ export default function AdDetails() {
             <Title order={4} mb="sm">
               Описание
             </Title>
-            <Divider mb="md" />
-            <Paper withBorder p="md" radius="md" bg="gray.0">
-              <Text size="sm" style={{ whiteSpace: 'pre-wrap' }}>
+            <Paper style={{ width: '480px' }}>
+              <Text size="sm" style={{
+                whiteSpace: 'pre-wrap',
+                wordBreak: 'break-word',
+                overflowWrap: 'break-word',
+              }} >
                 {item.description}
               </Text>
             </Paper>

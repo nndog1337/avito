@@ -1,21 +1,41 @@
 import { Alert, Box, Container, Flex, Group, Pagination, Select, Stack, Text, Title } from '@mantine/core';
 import { IconAlertCircle } from '@tabler/icons-react';
-import { useMemo } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { useGetItemsQuery } from '../api/itemsApi';
 import { AdCard } from '../components/AdCard';
 import { FiltersPanel } from '../components/FiltersPanel';
 import { SearchInput } from '../components/SearchInput';
 import { useAppDispatch, useAppSelector } from '../store';
-import { setPage, setSort, type SortColumn, type SortDirection } from '../store/filtersSlice';
+import { setPage, setSort, setQ, type SortColumn, type SortDirection } from '../store/filtersSlice';
 import { filtersToGetItemsParams } from '../utils/filtersToQuery';
 
 export default function AdsList() {
   const dispatch = useAppDispatch();
   const filters = useAppSelector((s) => s.filters);
+  
+  // Локальное состояние для поиска с debounce
+  const [localSearchQuery, setLocalSearchQuery] = useState(filters.q);
+  
+  // Debounce: сохраняем поиск в store через 500ms после остановки печати
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (localSearchQuery !== filters.q) {
+        dispatch(setQ(localSearchQuery));
+      }
+    }, 500);
+    
+    return () => clearTimeout(timeoutId);
+  }, [localSearchQuery, dispatch, filters.q]);
+  
   const queryParams = useMemo(() => filtersToGetItemsParams(filters), [filters]);
   const { data, isLoading, isFetching, isError, error } = useGetItemsQuery(queryParams);
 
   const totalPages = data ? Math.max(1, Math.ceil(data.total / filters.pageSize)) : 1;
+
+  // Обработчик изменения поиска
+  const handleSearchChange = (value: string) => {
+    setLocalSearchQuery(value);
+  };
 
   return (
     <Container style={{ maxWidth: 1368 }}>
@@ -39,7 +59,7 @@ export default function AdsList() {
 
         <Flex w="100%" gap="md" align="center" wrap="wrap">
           <div style={{ flex: 1, minWidth: 280 }}>
-            <SearchInput />
+            <SearchInput value={localSearchQuery} onChange={handleSearchChange} />
           </div>
           <Select
             value={`${filters.sortColumn}:${filters.sortDirection}`}

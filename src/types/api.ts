@@ -37,6 +37,7 @@ export interface Item {
 }
 
 export interface ListItem {
+  id: string;
   category: Category;
   title: string;
   price: number;

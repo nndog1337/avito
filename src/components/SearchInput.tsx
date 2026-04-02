@@ -1,19 +1,20 @@
 import { TextInput } from '@mantine/core';
 import { IconSearch } from '@tabler/icons-react';
-import { useAppDispatch, useAppSelector } from '../store';
-import { setQ } from '../store/filtersSlice';
 
-export function SearchInput() {
-  const dispatch = useAppDispatch();
-  const q = useAppSelector((s) => s.filters.q);
+interface SearchInputProps {
+  value: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+}
 
+export function SearchInput({ value, onChange, placeholder = "Поиск по названию..." }: SearchInputProps) {
   return (
     <TextInput
-      placeholder="Поиск по названию..."
+      placeholder={placeholder}
       rightSection={<IconSearch size={18} />}
       rightSectionPointerEvents="none"
-      value={q}
-      onChange={(e) => dispatch(setQ(e.currentTarget.value))}
+      value={value}
+      onChange={(e) => onChange(e.currentTarget.value)}
       size="md"
       style={{ width: '100%', height: '32px' }}
     />

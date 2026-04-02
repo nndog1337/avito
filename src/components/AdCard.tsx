@@ -17,7 +17,7 @@ export function AdCard({ item }: AdCardProps) {
   const navigate = useNavigate();
 
   const handleClick = () => {
-    navigate(`/ads/${item.title}`);
+    navigate(`/ads/${item.id}`);
   };
 
   return (

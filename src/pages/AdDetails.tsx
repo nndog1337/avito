@@ -12,6 +12,7 @@ import {
   Flex,
   Alert,
   Image,
+  Anchor,
 } from '@mantine/core';
 import { IconArrowLeft, IconPencil, IconAlertCircle } from '@tabler/icons-react';
 import { Link, useParams } from 'react-router-dom';
@@ -162,6 +163,9 @@ export default function AdDetails() {
 
   return (
     <Container style={{ maxWidth: 1368 }}>
+      <Anchor component={Link} to="/ads" underline="never" size="xl">
+        Мои объявления
+      </Anchor>
       <Stack gap="xl">
         <div>
           <Group justify="space-between" align="flex-start" mt="md" wrap="wrap">
@@ -191,8 +195,8 @@ export default function AdDetails() {
                     Опубликовано: {formatDate(item.createdAt)}
                   </Text>
                   {item.updatedAt && (
-                      <Text c="dimmed" size="sm" mt={4}> Отредактировано: {formatDate(item.updatedAt)}</Text>
-                    )}
+                    <Text c="dimmed" size="sm" mt={4}> Отредактировано: {formatDate(item.updatedAt)}</Text>
+                  )}
                 </Flex>
               </Flex>
             </Box>

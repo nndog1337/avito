@@ -11,10 +11,14 @@ import {
   TextInput,
   Title,
   ActionIcon,
+  Divider,
+  Popover,
+  Loader,
+  Box,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
-import { IconArrowLeft, IconX } from '@tabler/icons-react';
-import { useEffect } from 'react';
+import { IconArrowLeft, IconX, IconAlertCircle, IconBulb } from '@tabler/icons-react';
+import { useEffect, useState, useRef } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useGetItemQuery, useUpdateItemMutation } from '../api/itemsApi';
 import type {
@@ -36,10 +40,12 @@ type FormValues = {
 };
 
 const DRAFT_KEY = 'adEditDraft';
+const AI_API_URL = 'http://localhost:11434/api/generate';
+const AI_MODEL = 'llama3.2';
 
 function buildPayload(values: FormValues): UpdateItemPayload {
   let params: AutoParams | RealEstateParams | ElectronicsParams;
-  
+
   if (values.category === 'auto') {
     const p = values.auto;
     const autoParams: AutoParams = {};
@@ -90,7 +96,7 @@ function saveDraftToLocalStorage(values: FormValues, id: string) {
 function loadDraftFromLocalStorage(id: string): FormValues | null {
   const stored = localStorage.getItem(DRAFT_KEY);
   if (!stored) return null;
-  
+
   try {
     const draft = JSON.parse(stored);
     if (draft.id === id) {
@@ -102,9 +108,99 @@ function loadDraftFromLocalStorage(id: string): FormValues | null {
   return null;
 }
 
-// Очистка черновика
 function clearDraftFromLocalStorage() {
   localStorage.removeItem(DRAFT_KEY);
+}
+
+function generateDescriptionPrompt(values: FormValues): string {
+  let paramsText = '';
+
+  if (values.category === 'auto') {
+    const p = values.auto;
+    paramsText = `
+- Марка: ${p.brand || 'не указана'}
+- Модель: ${p.model || 'не указана'}
+- Год выпуска: ${p.yearOfManufacture || 'не указан'}
+- КПП: ${p.transmission === 'automatic' ? 'Автомат' : p.transmission === 'manual' ? 'Механика' : 'не указана'}
+- Пробег: ${p.mileage ? `${p.mileage.toLocaleString()} км` : 'не указан'}
+- Мощность: ${p.enginePower ? `${p.enginePower} л.с.` : 'не указана'}`;
+  } else if (values.category === 'real_estate') {
+    const p = values.realEstate;
+    const typeLabel = p.type === 'flat' ? 'Квартира' : p.type === 'house' ? 'Дом' : p.type === 'room' ? 'Комната' : 'не указан';
+    paramsText = `
+- Тип: ${typeLabel}
+- Адрес: ${p.address || 'не указан'}
+- Площадь: ${p.area ? `${p.area} м²` : 'не указана'}
+- Этаж: ${p.floor || 'не указан'}`;
+  } else {
+    const p = values.electronics;
+    const typeLabel = p.type === 'phone' ? 'Телефон' : p.type === 'laptop' ? 'Ноутбук' : p.type === 'misc' ? 'Другое' : 'не указан';
+    paramsText = `
+- Тип: ${typeLabel}
+- Бренд: ${p.brand || 'не указан'}
+- Модель: ${p.model || 'не указана'}
+- Цвет: ${p.color || 'не указан'}
+- Состояние: ${p.condition === 'new' ? 'Новое' : p.condition === 'used' ? 'Б/у' : 'не указано'}`;
+  }
+
+  const currentDescription = values.description?.trim();
+  if (currentDescription) {
+    return `Улучши существующее описание для объявления о продаже "${values.title}" (категория: ${values.category}).
+Характеристики:${paramsText}
+Цена: ${values.price.toLocaleString()} ₽
+
+Текущее описание: "${currentDescription}"
+
+Напиши улучшенную версию на русском языке, длиной 3-5 предложений. Сохрани ключевую информацию, сделай текст более привлекательным и убедительным. Не используй маркированные списки, пиши сплошным текстом.`;
+  } else {
+    return `Напиши привлекательное и подробное описание для объявления о продаже "${values.title}" (категория: ${values.category}).
+Характеристики:${paramsText}
+Цена: ${values.price.toLocaleString()} ₽
+
+Напиши описание на русском языке, длиной 3-5 предложений. Будь информативным и убедительным. Не используй маркированные списки, пиши сплошным текстом.`;
+  }
+}
+
+function generatePricePrompt(values: FormValues): string {
+  let paramsText = '';
+
+  if (values.category === 'auto') {
+    const p = values.auto;
+    paramsText = `
+Марка: ${p.brand || 'не указана'}
+Модель: ${p.model || 'не указана'}
+Год выпуска: ${p.yearOfManufacture || 'не указан'}
+Пробег: ${p.mileage ? `${p.mileage.toLocaleString()} км` : 'не указан'}`;
+  } else if (values.category === 'real_estate') {
+    const p = values.realEstate;
+    paramsText = `
+Тип: ${p.type === 'flat' ? 'Квартира' : p.type === 'house' ? 'Дом' : p.type === 'room' ? 'Комната' : 'не указан'}
+Площадь: ${p.area ? `${p.area} м²` : 'не указана'}
+Этаж: ${p.floor || 'не указан'}`;
+  } else {
+    const p = values.electronics;
+    paramsText = `
+Тип: ${p.type === 'phone' ? 'Телефон' : p.type === 'laptop' ? 'Ноутбук' : p.type === 'misc' ? 'Другое' : 'не указан'}
+Бренд: ${p.brand || 'не указан'}
+Модель: ${p.model || 'не указана'}
+Состояние: ${p.condition === 'new' ? 'Новое' : p.condition === 'used' ? 'Б/у' : 'не указано'}`;
+  }
+
+  return `Определи рыночную цену для "${values.title}" (категория: ${values.category}).
+
+Характеристики:
+${paramsText}
+
+Ответь в формате:
+Средняя цена: [сумма] ₽ — [диапазон] ₽ — [диапазон] ₽
+
+Пример ответа:
+Средняя цена на MacBook Pro 16" M1 Pro (16/512GB):
+115 000 – 135 000 ₽ — отличное состояние.
+От 140 000 ₽ — идеал, малый износ АКБ.
+90 000 – 110 000 ₽ — срочно или с дефектами.
+
+Напиши ответ на русском языке.`;
 }
 
 export default function AdEdit() {
@@ -113,6 +209,16 @@ export default function AdEdit() {
   const { data: item, isLoading, isError } = useGetItemQuery(id ?? '', { skip: !id });
   const [updateItem, { isLoading: saving, isError: saveError, error: saveErr }] =
     useUpdateItemMutation();
+
+  const [isPriceLoading, setIsPriceLoading] = useState(false);
+  const [isDescriptionLoading, setIsDescriptionLoading] = useState(false);
+  const [priceResult, setPriceResult] = useState<string | null>(null);
+  const [priceError, setPriceError] = useState<string | null>(null);
+  const [descriptionResult, setDescriptionResult] = useState<string | null>(null);
+  const [descriptionError, setDescriptionError] = useState<string | null>(null);
+
+  const priceAbortRef = useRef<AbortController | null>(null);
+  const descriptionAbortRef = useRef<AbortController | null>(null);
 
   const form = useForm<FormValues>({
     initialValues: {
@@ -142,17 +248,160 @@ export default function AdEdit() {
         condition: undefined,
       },
     },
-    validate: {
-      title: (v) => (!v.trim() ? 'Укажите название' : null),
-      price: (v) => (v < 0 ? 'Цена не может быть отрицательной' : null),
-    },
   });
+
+  const validateForm = (values: FormValues): Record<string, string | null> => {
+    const errors: Record<string, string | null> = {};
+
+    if (!values.title.trim()) {
+      errors.title = 'Укажите название';
+    }
+
+    if (values.price === undefined || values.price === null) {
+      errors.price = 'Укажите цену';
+    } else if (values.price <= 0) {
+      errors.price = 'Цена должна быть больше 0';
+    }
+
+    if (values.category === 'auto') {
+      if (!values.auto.transmission) {
+        errors['auto.transmission'] = 'Выберите тип КПП';
+      }
+    } else if (values.category === 'real_estate') {
+      if (!values.realEstate.type) {
+        errors['realEstate.type'] = 'Выберите тип недвижимости';
+      }
+    } else if (values.category === 'electronics') {
+      if (!values.electronics.type) {
+        errors['electronics.type'] = 'Выберите тип устройства';
+      }
+    }
+
+    return errors;
+  };
+
+  const handleGeneratePrice = async () => {
+    if (priceAbortRef.current) {
+      priceAbortRef.current.abort();
+    }
+
+    priceAbortRef.current = new AbortController();
+    setIsPriceLoading(true);
+    setPriceError(null);
+    setPriceResult(null);
+
+    try {
+      const values = form.getValues();
+      const prompt = generatePricePrompt(values);
+
+      const response = await fetch(AI_API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: AI_MODEL,
+          prompt: prompt,
+          stream: false,
+        }),
+        signal: priceAbortRef.current.signal,
+      });
+
+      if (!response.ok) {
+        throw new Error(`AI API error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      const result = data.response || '';
+      setPriceResult(result);
+    } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') {
+        return;
+      }
+      setPriceError('Произошла ошибка при запросе к AI');
+      console.error(error);
+    } finally {
+      setIsPriceLoading(false);
+      priceAbortRef.current = null;
+    }
+  };
+
+  const handleGenerateDescription = async () => {
+    if (descriptionAbortRef.current) {
+      descriptionAbortRef.current.abort();
+    }
+
+    descriptionAbortRef.current = new AbortController();
+    setIsDescriptionLoading(true);
+    setDescriptionError(null);
+    setDescriptionResult(null);
+
+    try {
+      const values = form.getValues();
+      const prompt = generateDescriptionPrompt(values);
+
+      const response = await fetch(AI_API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: AI_MODEL,
+          prompt: prompt,
+          stream: false,
+        }),
+        signal: descriptionAbortRef.current.signal,
+      });
+
+      if (!response.ok) {
+        throw new Error(`AI API error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      const result = data.response || '';
+      setDescriptionResult(result);
+    } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') {
+        return;
+      }
+      setDescriptionError('Произошла ошибка при запросе к AI');
+      console.error(error);
+    } finally {
+      setIsDescriptionLoading(false);
+      descriptionAbortRef.current = null;
+    }
+  };
+
+  const applyPrice = () => {
+    if (priceResult) {
+      const priceMatch = priceResult.match(/\d{2,6}[0-9\s]*[0-9]/);
+      if (priceMatch) {
+        const price = parseInt(priceMatch[0].replace(/\s/g, ''), 10);
+        if (!isNaN(price)) {
+          form.setFieldValue('price', price);
+        }
+      }
+    }
+    setPriceResult(null);
+    setPriceError(null);
+  };
+
+  const applyDescription = () => {
+    if (descriptionResult) {
+      form.setFieldValue('description', descriptionResult);
+    }
+    setDescriptionResult(null);
+    setDescriptionError(null);
+  };
+
+  const getDescriptionButtonText = () => {
+    if (isDescriptionLoading) return 'Выполняется запрос...';
+    if (descriptionResult || descriptionError) return 'Повторить запрос';
+    if (form.values.description?.trim()) return 'Улучшить описание';
+    return 'Придумать описание';
+  };
 
   useEffect(() => {
     if (!item) return;
-    
+
     const draft = loadDraftFromLocalStorage(id!);
-    
+
     if (draft) {
       form.setValues(draft);
     } else {
@@ -189,12 +438,12 @@ export default function AdEdit() {
   useEffect(() => {
     if (!id) return;
     if (!form.isDirty()) return;
-    
+
     const timeoutId = setTimeout(() => {
       const currentValues = form.getValues();
       saveDraftToLocalStorage(currentValues, id);
     }, 500);
-    
+
     return () => clearTimeout(timeoutId);
   }, [form.values, id, form.isDirty]);
 
@@ -233,6 +482,16 @@ export default function AdEdit() {
   }
 
   const handleSubmit = form.onSubmit((values) => {
+    const validationErrors = validateForm(values);
+    if (Object.keys(validationErrors).length > 0) {
+      Object.entries(validationErrors).forEach(([field, error]) => {
+        if (error) {
+          form.setFieldError(field as any, error);
+        }
+      });
+      return;
+    }
+
     const body = buildPayload(values);
     updateItem({ id, body })
       .unwrap()
@@ -249,7 +508,7 @@ export default function AdEdit() {
 
   return (
     <Container style={{ maxWidth: 1368 }}>
-      <form onSubmit={handleSubmit}>
+      <form onSubmit={handleSubmit} noValidate>
         <Stack gap="lg">
           <Title order={2}>Редактирование</Title>
 
@@ -291,6 +550,15 @@ export default function AdEdit() {
                 color: '',
                 condition: undefined,
               });
+              form.clearFieldError('auto.transmission');
+              form.clearFieldError('realEstate.type');
+              form.clearFieldError('electronics.type');
+              form.clearFieldError('title');
+              form.clearFieldError('price');
+              setPriceResult(null);
+              setPriceError(null);
+              setDescriptionResult(null);
+              setDescriptionError(null);
             }}
             style={{ width: 456 }}
           />
@@ -300,6 +568,7 @@ export default function AdEdit() {
             required
             {...form.getInputProps('title')}
             style={{ width: 456 }}
+            error={form.errors.title}
             rightSection={
               form.values.title && (
                 <ActionIcon
@@ -314,20 +583,96 @@ export default function AdEdit() {
             }
           />
 
-          <NumberInput
-            label="Цена, ₽"
-            required
-            min={0}
-            {...form.getInputProps('price')}
-            style={{ width: 456 }}
-          />
+          <Box style={{ position: 'relative', width: 456 }}>
+            <NumberInput
+              label="Цена, ₽"
+              required
+              min={0}
+              {...form.getInputProps('price')}
+              error={form.errors.price}
+              style={{ width: '100%' }}
+            />
+
+            <Box
+              style={{
+                position: 'absolute',
+                left: '100%',
+                top: 25,
+                marginLeft: 20,
+              }}
+            >
+              <Popover
+                opened={!!priceResult || !!priceError}
+                onClose={() => {
+                  setPriceResult(null);
+                  setPriceError(null);
+                }}
+                width={400}
+                position="top-start"
+                offset={{ mainAxis: 10, crossAxis: 0 }}
+                withArrow
+              >
+                <Popover.Target>
+                  <Button
+                    variant="light"
+                    leftSection={isPriceLoading ? <Loader size={16} /> : <IconBulb size={16} />}
+                    onClick={handleGeneratePrice}
+                    disabled={isPriceLoading}
+                    style={{ backgroundColor: '#F9F1E6', color: '#FFA940' }}
+                  >
+                    {isPriceLoading ? 'Выполняется запрос...' : (priceResult || priceError ? 'Повторить запрос' : 'Узнать рыночную цену')}
+                  </Button>
+                </Popover.Target>
+                <Popover.Dropdown>
+                  {priceResult && (
+                    <Stack>
+                      <Text size="sm" style={{ whiteSpace: 'pre-wrap' }}>
+                        {priceResult}
+                      </Text>
+                      <Divider />
+                      <Group justify="flex-start">
+                        <Button size="xs" onClick={applyPrice}>
+                          Применить
+                        </Button>
+                        <Button size="xs" variant="default" onClick={() => setPriceResult(null)}>
+                          Закрыть
+                        </Button>
+                      </Group>
+                    </Stack>
+                  )}
+                  {priceError && (
+                    <Stack>
+                      <Group gap="xs">
+                        <IconAlertCircle size={18} color="orange" />
+                        <Text size="sm" c="orange" fw={500}>
+                          {priceError}
+                        </Text>
+                      </Group>
+                      <Text size="xs" c="dimmed">
+                        Попробуйте повторить запрос или закройте уведомление.
+                      </Text>
+                      <Divider />
+                      <Group justify="flex-end">
+                        <Button size="xs" variant="default" onClick={() => setPriceError(null)}>
+                          Закрыть
+                        </Button>
+                        <Button size="xs" onClick={handleGeneratePrice}>
+                          Повторить
+                        </Button>
+                      </Group>
+                    </Stack>
+                  )}
+                </Popover.Dropdown>
+              </Popover>
+            </Box>
+          </Box>
 
           <Text fw={700}>Характеристики</Text>
 
           {cat === 'auto' && (
             <Stack gap="sm">
-              <TextInput 
-                label="Марка" 
+              <TextInput
+                label="Марка"
                 value={form.values.auto.brand || ''}
                 onChange={(e) => form.setFieldValue('auto.brand', e.currentTarget.value)}
                 style={{ width: 456 }}
@@ -344,8 +689,8 @@ export default function AdEdit() {
                   )
                 }
               />
-              <TextInput 
-                label="Модель" 
+              <TextInput
+                label="Модель"
                 value={form.values.auto.model || ''}
                 onChange={(e) => form.setFieldValue('auto.model', e.currentTarget.value)}
                 style={{ width: 456 }}
@@ -370,7 +715,8 @@ export default function AdEdit() {
                 style={{ width: 456 }}
               />
               <Select
-                label="КПП"
+                label="Тип КПП"
+                required
                 clearable
                 data={[
                   { value: 'automatic', label: 'Автомат' },
@@ -378,6 +724,7 @@ export default function AdEdit() {
                 ]}
                 value={form.values.auto.transmission || null}
                 onChange={(val) => form.setFieldValue('auto.transmission', val as 'automatic' | 'manual' | undefined)}
+                error={form.errors['auto.transmission']}
                 style={{ width: 456 }}
               />
               <NumberInput
@@ -392,22 +739,14 @@ export default function AdEdit() {
                 {...form.getInputProps('auto.enginePower')}
                 style={{ width: 456 }}
               />
-              <Textarea
-                label="Описание"
-                minRows={3}
-                maxRows={10}
-                autosize
-                resize="vertical"
-                {...form.getInputProps('description')}
-                w="100%"
-              />
             </Stack>
           )}
 
           {cat === 'real_estate' && (
             <Stack gap="sm">
               <Select
-                label="Тип"
+                label="Тип недвижимости"
+                required
                 clearable
                 data={[
                   { value: 'flat', label: 'Квартира' },
@@ -416,6 +755,7 @@ export default function AdEdit() {
                 ]}
                 value={form.values.realEstate.type || null}
                 onChange={(val) => form.setFieldValue('realEstate.type', val as 'flat' | 'house' | 'room' | undefined)}
+                error={form.errors['realEstate.type']}
                 style={{ width: 456 }}
               />
               <TextInput
@@ -447,22 +787,14 @@ export default function AdEdit() {
                 {...form.getInputProps('realEstate.floor')}
                 style={{ width: 456 }}
               />
-              <Textarea
-                label="Описание"
-                minRows={3}
-                maxRows={10}
-                autosize
-                resize="vertical"
-                {...form.getInputProps('description')}
-                w="100%"
-              />
             </Stack>
           )}
 
           {cat === 'electronics' && (
             <Stack gap="sm">
               <Select
-                label="Тип"
+                label="Тип устройства"
+                required
                 clearable
                 data={[
                   { value: 'phone', label: 'Телефон' },
@@ -471,6 +803,7 @@ export default function AdEdit() {
                 ]}
                 value={form.values.electronics.type || null}
                 onChange={(val) => form.setFieldValue('electronics.type', val as 'phone' | 'laptop' | 'misc' | undefined)}
+                error={form.errors['electronics.type']}
                 style={{ width: 456 }}
               />
               <TextInput
@@ -538,19 +871,86 @@ export default function AdEdit() {
                 onChange={(val) => form.setFieldValue('electronics.condition', val as 'new' | 'used' | undefined)}
                 style={{ width: 456 }}
               />
-              <Textarea
-                label="Описание"
-                minRows={3}
-                maxRows={10}
-                autosize
-                resize="vertical"
-                {...form.getInputProps('description')}
-                w="100%"
-              />
             </Stack>
           )}
 
-          <Group justify="flex-start" mt="md">
+          <Textarea
+            label="Описание"
+            minRows={4}
+            maxRows={10}
+            autosize
+            resize="vertical"
+            {...form.getInputProps('description')}
+            w="100%"
+          />
+
+          <Box style={{ position: 'relative' }}>
+            <Popover
+              opened={!!descriptionResult || !!descriptionError}
+              onClose={() => {
+                setDescriptionResult(null);
+                setDescriptionError(null);
+              }}
+              width={450}
+              position="right-start"
+              offset={{ mainAxis: 10, crossAxis: 0 }}
+              withArrow
+              zIndex={1000}
+            >
+              <Popover.Target>
+                <Button
+                  variant="light"
+                  leftSection={isDescriptionLoading ? <Loader size={16} /> : <IconBulb size={16} />}
+                  onClick={handleGenerateDescription}
+                  disabled={isDescriptionLoading}
+                  style={{ backgroundColor: '#F9F1E6', color: '#FFA940' }}
+                >
+                  {getDescriptionButtonText()}
+                </Button>
+              </Popover.Target>
+              <Popover.Dropdown ml={50}>
+                {descriptionResult && (
+                  <Stack>
+                    <Text size="sm" style={{ whiteSpace: 'pre-wrap' }}>
+                      {descriptionResult}
+                    </Text>
+                    <Divider />
+                    <Group justify="flex-end">
+                      <Button size="xs" variant="default" onClick={() => setDescriptionResult(null)}>
+                        Закрыть
+                      </Button>
+                      <Button size="xs" onClick={applyDescription}>
+                        Применить
+                      </Button>
+                    </Group>
+                  </Stack>
+                )}
+                {descriptionError && (
+                  <Stack>
+                    <Group gap="xs">
+                      <IconAlertCircle size={18} color="orange" />
+                      <Text size="sm" c="orange" fw={500}>
+                        {descriptionError}
+                      </Text>
+                    </Group>
+                    <Text size="xs" c="dimmed">
+                      Попробуйте повторить запрос или закройте уведомление.
+                    </Text>
+                    <Divider />
+                    <Group justify="flex-end">
+                      <Button size="xs" variant="default" onClick={() => setDescriptionError(null)}>
+                        Закрыть
+                      </Button>
+                      <Button size="xs" onClick={handleGenerateDescription}>
+                        Повторить
+                      </Button>
+                    </Group>
+                  </Stack>
+                )}
+              </Popover.Dropdown>
+            </Popover>
+          </Box>
+          <Group justify="flex-start" >
             <Button type="submit" loading={saving}>
               Сохранить
             </Button>

@@ -15,15 +15,13 @@ const fastify = Fastify({
 
 await fastify.register((await import('@fastify/middie')).default);
 
-// ✅ ПРАВИЛЬНАЯ НАСТРОЙКА CORS
 fastify.register(fastifyCors, {
-  origin: true, // разрешить все источники
+  origin: true,
   methods: ['GET', 'PUT', 'POST', 'DELETE', 'OPTIONS', 'PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true,
 });
 
-// Искуственная задержка ответов
 fastify.use((_, __, next) =>
   new Promise(res => setTimeout(res, 300 + Math.random() * 700)).then(next),
 );

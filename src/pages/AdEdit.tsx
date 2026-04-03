@@ -17,7 +17,7 @@ import {
   Box,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
-import { IconArrowLeft, IconX, IconAlertCircle, IconBulb } from '@tabler/icons-react';
+import { IconArrowLeft, IconX, IconAlertCircle, IconBulb, IconCheck } from '@tabler/icons-react';
 import { useEffect, useState, useRef } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useGetItemQuery, useUpdateItemMutation } from '../api/itemsApi';
@@ -28,6 +28,7 @@ import type {
   RealEstateParams,
   UpdateItemPayload,
 } from '../types/api';
+import { notifications } from '@mantine/notifications';
 
 type FormValues = {
   category: Category;
@@ -497,10 +498,28 @@ export default function AdEdit() {
       .unwrap()
       .then(() => {
         clearDraftFromLocalStorage();
+
+        notifications.show({
+          title: 'Успешно!',
+          message: 'Изменения сохранены',
+          color: 'green',
+          icon: <IconCheck size={16} />,
+          autoClose: 3000,
+          position: 'top-right',
+        });
+
         navigate(`/ads/${id}`);
       })
-      .catch((e) => {
-        console.log(e);
+      .catch((error) => {
+        console.error(error);
+
+        notifications.show({
+          title: 'Ошибка сохранения',
+          message: 'При попытке сохранить изменения произошла ошибка. Попробуйте ещё раз или зайдите позже.',
+          color: 'red',
+          autoClose: 5000,
+          position: 'top-right',
+        });
       });
   });
 
@@ -583,7 +602,7 @@ export default function AdEdit() {
             }
           />
 
-          <Box style={{ position: 'relative', width: 456 }}>
+<Box style={{ position: 'relative', width: 456 }}>
             <NumberInput
               label="Цена, ₽"
               required
@@ -884,7 +903,7 @@ export default function AdEdit() {
             w="100%"
           />
 
-          <Box style={{ position: 'relative' }}>
+<Box style={{ position: 'relative' }}>
             <Popover
               opened={!!descriptionResult || !!descriptionError}
               onClose={() => {
@@ -916,11 +935,11 @@ export default function AdEdit() {
                     </Text>
                     <Divider />
                     <Group justify="flex-end">
+                    <Button size="xs" onClick={applyDescription}>
+                        Применить
+                      </Button>
                       <Button size="xs" variant="default" onClick={() => setDescriptionResult(null)}>
                         Закрыть
-                      </Button>
-                      <Button size="xs" onClick={applyDescription}>
-                        Применить
                       </Button>
                     </Group>
                   </Stack>
@@ -950,7 +969,8 @@ export default function AdEdit() {
               </Popover.Dropdown>
             </Popover>
           </Box>
-          <Group justify="flex-start" >
+
+          <Group justify="flex-start" mb={20}>
             <Button type="submit" loading={saving}>
               Сохранить
             </Button>

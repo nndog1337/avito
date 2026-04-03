@@ -13,6 +13,7 @@ import {
   Alert,
   Image,
   Anchor,
+  useMantineColorScheme,
 } from '@mantine/core';
 import { IconArrowLeft, IconPencil, IconAlertCircle } from '@tabler/icons-react';
 import { Link, useParams } from 'react-router-dom';
@@ -127,6 +128,7 @@ export default function AdDetails() {
   const { data: item, isLoading, isError, error } = useGetItemQuery(id ?? '', {
     skip: !id,
   });
+  const { colorScheme } = useMantineColorScheme();
 
   if (!id) {
     return (
@@ -163,16 +165,13 @@ export default function AdDetails() {
 
   return (
     <Container style={{ maxWidth: 1368 }}>
-      <Anchor component={Link} to="/ads" underline="never" size="xl">
-        Мои объявления
-      </Anchor>
       <Stack gap="xl">
         <div>
-          <Group justify="space-between" align="flex-start" mt="md" wrap="wrap">
+          <Group justify="space-between" align="flex-start" wrap="wrap">
             <Box style={{ flex: 1 }}>
               <Flex justify={'space-between'}>
                 <Title order={2} size={28}>{item.title}</Title>
-                <Text size="xl" fw={700} c="black" style={{ fontSize: '28px' }}>
+                <Text size="xl" fw={700} c={colorScheme === 'dark' ? 'gray.1' : 'dark'}  style={{ fontSize: '28px' }}>
                   {formatPrice(item.price)}
                 </Text>
               </Flex>

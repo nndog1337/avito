@@ -1,7 +1,7 @@
 import { AppShell, Container, Flex, Anchor } from '@mantine/core';
 import { useLocation } from 'react-router-dom';
 import { Link } from 'react-router-dom';
-import { ThemeToggle } from '../theme/ThemeToggle ';
+import { ThemeToggle } from '../../theme/ThemeToggle ';
 
 export function Header() {
   const location = useLocation();

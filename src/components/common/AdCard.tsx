@@ -1,6 +1,6 @@
 import { Card, Image, Text, Badge, Group, Flex, Box } from '@mantine/core';
 import { useNavigate } from 'react-router-dom';
-import type { ListItem } from '../types/api';
+import type { ListItem } from '../../types/api';
 
 interface AdCardProps {
   item: ListItem;

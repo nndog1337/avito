@@ -1,11 +1,11 @@
 import { Button, Checkbox, Divider, Flex, Paper, Stack, Switch, Text, Title } from '@mantine/core';
-import { useAppDispatch, useAppSelector } from '../store';
+import { useAppDispatch, useAppSelector } from '../../store';
 import {
   setNeedsRevision,
   resetFilters,
   toggleCategory,
-} from '../store/filtersSlice';
-import type { Category } from '../types/api';
+} from '../../store/filtersSlice';
+import type { Category } from '../../types/api';
 
 const categoryOptions: { value: Category; label: string }[] = [
   { value: 'auto', label: 'Авто' },

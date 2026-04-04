@@ -3,7 +3,7 @@ import { Navigate, Route, Routes,} from 'react-router-dom';
 import AdDetails from './pages/AdDetails';
 import AdEdit from './pages/AdEdit';
 import AdsList from './pages/AdsList';
-import { Header } from './components/Header';
+import { Header } from './components/common/Header';
 
 export default function App() {
   return (

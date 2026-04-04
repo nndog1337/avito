@@ -1,134 +1,17 @@
-import {
-  Button,
-  Container,
-  Divider,
-  Group,
-  Paper,
-  Stack,
-  Table,
-  Text,
-  Title,
-  Box,
-  Flex,
-  Alert,
-  Image,
-  Anchor,
-  useMantineColorScheme,
-} from '@mantine/core';
-import { IconArrowLeft, IconPencil, IconAlertCircle } from '@tabler/icons-react';
+import { Container, Stack, Flex, Box, Button, Text, Title } from '@mantine/core';
+import { IconArrowLeft } from '@tabler/icons-react';
 import { Link, useParams } from 'react-router-dom';
 import { useGetItemQuery } from '../api/itemsApi';
-import type { AutoParams, ElectronicsParams, Item, RealEstateParams } from '../types/api';
-
-
-
-function formatPrice(price: number) {
-  return new Intl.NumberFormat('ru-RU', {
-    style: 'currency',
-    currency: 'RUB',
-    maximumFractionDigits: 0,
-  }).format(price);
-}
-
-function formatDate(iso: string) {
-  try {
-    return new Intl.DateTimeFormat('ru-RU', {
-      day: 'numeric',
-      month: 'long',
-      hour: '2-digit',
-      minute: '2-digit',
-    }).format(new Date(iso));
-  } catch {
-    return iso;
-  }
-}
-
-function getMissingFields(item: Item): string[] {
-  const missing: string[] = [];
-
-  if (!item.description) {
-    missing.push('Описание');
-  }
-
-  if (item.category === 'electronics') {
-    const params = item.params as ElectronicsParams;
-    if (!params.color) missing.push('Цвет');
-    if (!params.condition) missing.push('Состояние');
-    if (!params.brand) missing.push('Бренд');
-    if (!params.model) missing.push('Модель');
-  } else if (item.category === 'auto') {
-    const params = item.params as AutoParams;
-    if (!params.brand) missing.push('Марка');
-    if (!params.model) missing.push('Модель');
-    if (!params.yearOfManufacture) missing.push('Год выпуска');
-    if (!params.mileage) missing.push('Пробег');
-  } else if (item.category === 'real_estate') {
-    const params = item.params as RealEstateParams;
-    if (!params.type) missing.push('Тип недвижимости');
-    if (!params.area) missing.push('Площадь');
-    if (!params.address) missing.push('Адрес');
-  }
-
-  return missing;
-}
-
-function ParamsTable({ item }: { item: Item }) {
-  let rows: { label: string; value: string }[] = [];
-
-  if (item.category === 'auto') {
-    const p = item.params as AutoParams;
-    rows = [
-      { label: 'Тип', value: 'Автомобиль' },
-      ...(p.brand ? [{ label: 'Бренд', value: p.brand }] : []),
-      ...(p.model ? [{ label: 'Модель', value: p.model }] : []),
-      ...(p.yearOfManufacture ? [{ label: 'Год', value: String(p.yearOfManufacture) }] : []),
-      ...(p.transmission ? [{ label: 'КПП', value: p.transmission === 'automatic' ? 'Автомат' : 'Механика' }] : []),
-      ...(p.mileage ? [{ label: 'Пробег', value: `${p.mileage.toLocaleString('ru-RU')} км` }] : []),
-      ...(p.enginePower ? [{ label: 'Мощность', value: `${p.enginePower} л.с.` }] : []),
-    ];
-  } else if (item.category === 'real_estate') {
-    const p = item.params as RealEstateParams;
-    const typeLabel = p.type === 'flat' ? 'Квартира' : p.type === 'house' ? 'Дом' : p.type === 'room' ? 'Комната' : '';
-    rows = [
-      { label: 'Тип', value: typeLabel || 'Недвижимость' },
-      ...(p.address ? [{ label: 'Адрес', value: p.address }] : []),
-      ...(p.area ? [{ label: 'Площадь', value: `${p.area} м²` }] : []),
-      ...(p.floor ? [{ label: 'Этаж', value: String(p.floor) }] : []),
-    ];
-  } else {
-    const p = item.params as ElectronicsParams;
-    const typeLabel = p.type === 'phone' ? 'Телефон' : p.type === 'laptop' ? 'Ноутбук' : p.type === 'misc' ? 'Другое' : '';
-    rows = [
-      { label: 'Тип', value: typeLabel || 'Электроника' },
-      ...(p.brand ? [{ label: 'Бренд', value: p.brand }] : []),
-      ...(p.model ? [{ label: 'Модель', value: p.model }] : []),
-      ...(p.color ? [{ label: 'Цвет', value: p.color }] : []),
-      ...(p.condition ? [{ label: 'Состояние', value: p.condition === 'new' ? 'Новое' : 'Б/у' }] : []),
-    ];
-  }
-
-  return (
-    <Stack gap="sm">
-      {rows.map((row) => (
-        <Group key={row.label} wrap="nowrap">
-          <Text fw={500} size="sm" c="dimmed" style={{ minWidth: 120 }}>
-            {row.label}:
-          </Text>
-          <Text size="sm" style={{ textAlign: 'right' }}>
-            {row.value}
-          </Text>
-        </Group>
-      ))}
-    </Stack>
-  );
-}
+import { AdHeader } from '../components/adDetails/AdHeader';
+import { AdPicture } from '../components/adDetails/AdPicture';
+import { AdDescription } from '../components/adDetails/AdDescription';
+import { ParamsTable } from '../components/adDetails/ParamsTable';
+import { MissingFieldsAlert } from '../components/adDetails/MissingFieldsAlert';
+import { getMissingFields } from '../utils/missingFields';
 
 export default function AdDetails() {
   const { id } = useParams<{ id: string }>();
-  const { data: item, isLoading, isError, error } = useGetItemQuery(id ?? '', {
-    skip: !id,
-  });
-  const { colorScheme } = useMantineColorScheme();
+  const { data: item, isLoading, isError, error } = useGetItemQuery(id ?? '', { skip: !id });
 
   if (!id) {
     return (
@@ -166,71 +49,12 @@ export default function AdDetails() {
   return (
     <Container style={{ maxWidth: 1368 }}>
       <Stack gap="xl">
-        <div>
-          <Group justify="space-between" align="flex-start" wrap="wrap">
-            <Box style={{ flex: 1 }}>
-              <Flex justify={'space-between'}>
-                <Title order={2} size={28}>{item.title}</Title>
-                <Text size="xl" fw={700} c={colorScheme === 'dark' ? 'gray.1' : 'dark'}  style={{ fontSize: '28px' }}>
-                  {formatPrice(item.price)}
-                </Text>
-              </Flex>
-              <Flex justify={'space-between'}>
-                <Button
-                  component={Link}
-                  to={`/ads/${item.id}/edit`}
-                  rightSection={<IconPencil size={18} />}
-                  variant="blue"
-                  w={170}
-                  style={{
-                    transition: 'all 0.2s ease',
-                    cursor: 'pointer',
-                  }}
-                >
-                  Редактировать
-                </Button>
-                <Flex direction="column" style={{ textAlign: 'right' }}>
-                  <Text c="dimmed" size="sm" mt={4}>
-                    Опубликовано: {formatDate(item.createdAt)}
-                  </Text>
-                  {item.updatedAt && (
-                    <Text c="dimmed" size="sm" mt={4}> Отредактировано: {formatDate(item.updatedAt)}</Text>
-                  )}
-                </Flex>
-              </Flex>
-            </Box>
-          </Group>
-        </div>
-        <Flex gap={32}>
-          <Image
-            src={'https://placehold.co/400x250?text=Нет+фото'}
-            height={'360px'}
-            alt={item.title}
-            fit="cover"
-            style={{ width: '480px' }}
-          />
-          <Flex gap={36} direction="column" style={{ width: '527px' }}>
-            {missingFields.length > 0 && (
-              <Alert
-                color="yellow"
-                icon={<IconAlertCircle size={18} />}
-                title="Требуются доработки"
-                variant="light"
-                style={{ boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)' }}
-              >
-                <Text size="sm" fw={500} mb="xs">
-                  У объявления не заполнены поля:
-                </Text>
-                <ul style={{ margin: 0, paddingLeft: 20 }}>
-                  {missingFields.map((field) => (
-                    <li key={field}>
-                      <Text size="sm">{field}</Text>
-                    </li>
-                  ))}
-                </ul>
-              </Alert>
-            )}
+        <AdHeader item={item} />
 
+        <Flex gap={32}>
+          <AdPicture title={item.title} />
+          <Flex gap={36} direction="column" style={{ width: '527px' }}>
+            <MissingFieldsAlert missingFields={missingFields} />
             <Box>
               <Title order={4} mb="sm">
                 Характеристики
@@ -240,22 +64,7 @@ export default function AdDetails() {
           </Flex>
         </Flex>
 
-        {item.description && (
-          <Box>
-            <Title order={4} mb="sm">
-              Описание
-            </Title>
-            <Paper style={{ width: '480px' }}>
-              <Text size="sm" style={{
-                whiteSpace: 'pre-wrap',
-                wordBreak: 'break-word',
-                overflowWrap: 'break-word',
-              }} >
-                {item.description}
-              </Text>
-            </Paper>
-          </Box>
-        )}
+        {item.description && <AdDescription description={item.description} />}
       </Stack>
     </Container>
   );
